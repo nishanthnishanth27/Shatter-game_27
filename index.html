@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SHATTER-KN// FINAL</title>
+    <style>
+        /* --- CORE VISUALS --- */
+        body { margin: 0; background: #000; color: #fff; font-family: 'Verdana', sans-serif; overflow: hidden; user-select: none; -webkit-tap-highlight-color: transparent; }
+        canvas { display: block; }
+        
+        /* --- UI LAYOUT --- */
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            pointer-events: none; z-index: 10;
+            background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(4px); transition: opacity 0.3s;
+        }
+        .interactive { pointer-events: auto; }
+        .hidden { opacity: 0; pointer-events: none; }
+
+        /* --- TYPOGRAPHY --- */
+        h1.logo { font-size: 3rem; font-weight: 900; letter-spacing: 20px; margin: 0 0 40px 0; color: #fff; text-transform: uppercase; margin-left: 20px; }
+        h2 { font-size: 2rem; color: #fff; margin: 0 0 10px 0; letter-spacing: 5px; font-weight: 400; }
+        
+        /* --- BUTTONS --- */
+        .btn {
+            background: transparent; border: 1px solid rgba(255,255,255,0.3); color: #fff;
+            padding: 12px 0; margin: 6px; width: 240px; font-size: 0.8rem; font-weight: 600; 
+            letter-spacing: 3px; text-transform: uppercase; cursor: pointer; transition: all 0.2s;
+            font-family: 'Verdana', sans-serif;
+        }
+        .btn:hover { background: #fff; color: #000; border-color: #fff; }
+        .btn:active { transform: scale(0.98); }
+
+        /* --- HUD --- */
+        #hud { position: absolute; top: 30px; left: 30px; text-align: left; display: none; pointer-events: none; z-index: 5; }
+        #score-val { font-size: 5rem; font-weight: 700; line-height: 0.9; letter-spacing: -2px; }
+        #best-val { font-size: 0.9rem; color: #888; font-weight: 400; margin-left: 5px; letter-spacing: 2px; }
+
+        /* --- MODAL --- */
+        #leaderboard-modal {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 85%; max-width: 380px; background: #0a0a0a; border: 1px solid #333; 
+            padding: 40px; display: none; z-index: 100; text-align: center; box-shadow: 0 0 50px #000;
+        }
+        .lb-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #222; font-size: 0.9rem; color: #aaa; }
+        .lb-row:first-child { color: #fff; font-weight: bold; }
+
+        /* --- FOOTER --- */
+        #footer { position: absolute; bottom: 30px; width: 100%; display: flex; justify-content: center; align-items: center; z-index: 20; pointer-events: auto; }
+        #footer a { color: #666; font-size: 0.85rem; text-decoration: none; letter-spacing: 1px; transition: color 0.2s; display: flex; align-items: center; padding: 10px; }
+        #footer a:hover { color: #fff; }
+        .insta-icon { width: 18px; height: 18px; fill: currentColor; margin-right: 8px; }
+
+        #flash { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: white; opacity: 0; pointer-events: none; z-index: 50; transition: opacity 0.1s; }
+    </style>
+</head>
+<body>
+
+    <div id="flash"></div>
+
+    <div id="hud">
+        <div id="score-val">0</div>
+        <div id="best-val">BEST: 0</div>
+    </div>
+
+    <div id="start-screen" class="screen interactive">
+        <h1 class="logo">SHATTER</h1>
+        
+        <button class="btn" onclick="startGame()">PLAY</button>
+        <button class="btn" onclick="openLeaderboard()">SCORES</button>
+        <button class="btn" id="sound-btn" onclick="toggleSound()">SOUND: ON</button>
+        
+        <button class="btn" onclick="editName()">CHANGE NAME</button>
+        <button class="btn" onclick="sendFeedback()">FEEDBACK</button>
+    </div>
+
+    <div id="game-over-screen" class="screen interactive hidden">
+        <h2 id="death-reason">GAME OVER</h2>
+        <p style="color:#666; margin-bottom:40px; letter-spacing: 2px;">SCORE: <span id="final-score" style="color:#fff;">0</span></p>
+        <button class="btn" onclick="startGame()">RETRY</button>
+        <button class="btn" onclick="showMainMenu()">MENU</button>
+    </div>
+
+    <div id="leaderboard-modal" class="interactive">
+        <h3 style="color:#fff; letter-spacing:4px; margin-top:0; margin-bottom: 20px;">GLOBAL RANK</h3>
+        <div id="lb-content" style="margin-bottom: 20px;">Loading...</div>
+        <button class="btn" style="width:100%; margin:0;" onclick="closeLeaderboard()">CLOSE</button>
+    </div>
+
+    <div id="footer">
+        <a href="https://www.instagram.com/nishanth_lgnd" target="_blank">
+            <svg class="insta-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+            </svg>
+            @nishanth_lgnd
+        </a>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+<script>
+    // --- SOUND SYSTEM ---
+    class SoundManager {
+        constructor() { this.ctx = null; this.enabled = true; }
+        init() {
+            if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            if (this.ctx.state === 'suspended') this.ctx.resume();
+        }
+        toggle() { this.enabled = !this.enabled; return this.enabled; }
+        playShatter() {
+            if (!this.enabled || !this.ctx) return;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(800, this.ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+            osc.connect(gain); gain.connect(this.ctx.destination);
+            osc.start(); osc.stop(this.ctx.currentTime + 0.1);
+        }
+        playExplosion() {
+            if (!this.enabled || !this.ctx) return;
+            const bufferSize = this.ctx.sampleRate * 0.5; 
+            const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = buffer;
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(1000, this.ctx.currentTime);
+            filter.frequency.exponentialRampToValueAtTime(10, this.ctx.currentTime + 0.5);
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(1, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.5);
+            noise.connect(filter); filter.connect(gain); gain.connect(this.ctx.destination);
+            noise.start();
+        }
+    }
+    const sfx = new SoundManager();
+
+    // --- GAME ENGINE SETUP ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const hud = document.getElementById('hud');
+    const startScreen = document.getElementById('start-screen');
+    const gameOverScreen = document.getElementById('game-over-screen');
+    const footer = document.getElementById('footer');
+    const scoreEl = document.getElementById('score-val');
+    const bestEl = document.getElementById('best-val');
+    const finalScoreEl = document.getElementById('final-score');
+    const reasonEl = document.getElementById('death-reason');
+    const flashEl = document.getElementById('flash');
+    const soundBtn = document.getElementById('sound-btn');
+
+    let width, height;
+    let gameActive = false;
+    let score = 0;
+    let highScore = localStorage.getItem('shatter_high') || 0;
+    bestEl.innerText = 'BEST: ' + highScore;
+
+    let shapes = [];
+    let particles = [];
+    let shockwaves = [];
+    let screenShake = 0;
+    let spawnTimer = null;
+    const GRAVITY = 0.25;
+
+    function resize() {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // --- GLOBAL FUNCTIONS ---
+    function toggleSound() {
+        sfx.init();
+        const isOn = sfx.toggle();
+        soundBtn.innerText = isOn ? "SOUND: ON" : "SOUND: OFF";
+        soundBtn.style.opacity = isOn ? "1" : "0.5";
+    }
+
+    function showMainMenu() {
+        gameActive = false;
+        hud.style.display = 'none';
+        gameOverScreen.classList.add('hidden');
+        startScreen.classList.remove('hidden');
+        footer.style.display = 'flex'; 
+        shapes = [];
+        if(spawnTimer) clearTimeout(spawnTimer);
+    }
+
+    function startGame() {
+        sfx.init(); 
+        gameActive = true;
+        score = 0;
+        scoreEl.innerText = '0';
+        shapes = [];
+        particles = [];
+        shockwaves = [];
+        startScreen.classList.add('hidden');
+        gameOverScreen.classList.add('hidden');
+        hud.style.display = 'block';
+        footer.style.display = 'none'; 
+        if(spawnTimer) clearTimeout(spawnTimer);
+        spawnLoop();
+    }
+    
+    function sendFeedback() {
+        window.open("https://forms.gle/wvfRmUcMJUtx6dxX6", "_blank");
+    }
+
+    // --- GAME LOGIC ---
+    function triggerGameOver(reason) {
+        if(!gameActive) return;
+        gameActive = false;
+        if(spawnTimer) clearTimeout(spawnTimer);
+        
+        if(reason === "EXPLODED") {
+            sfx.playExplosion();
+            flashScreen();
+        }
+        
+        reasonEl.innerText = reason;
+        finalScoreEl.innerText = score;
+        hud.style.display = 'none';
+        gameOverScreen.classList.remove('hidden');
+        
+        if(score > highScore) {
+            highScore = score;
+            localStorage.setItem('shatter_high', highScore);
+            bestEl.innerText = 'BEST: ' + highScore;
+            
+            // Send to Firebase if connected
+            if (window.firebaseSubmit) {
+                setTimeout(() => window.firebaseSubmit(score), 500);
+            }
+        }
+    }
+
+    function flashScreen() {
+        flashEl.style.opacity = 1;
+        setTimeout(() => flashEl.style.opacity = 0, 100);
+    }
+
+    function handleInput(x, y) {
+        if (!gameActive) {
+            shockwaves.push(new Shockwave(x, y, true));
+            sfx.playShatter(); 
+            return;
+        }
+
+        shockwaves.push(new Shockwave(x, y, false));
+        screenShake = 5;
+
+        for (let i = shapes.length - 1; i >= 0; i--) {
+            let s = shapes[i];
+            let d = Math.hypot(s.x - x, s.y - y);
+            if (d < 100) {
+                destroyShape(s, i);
+            }
+        }
+    }
+
+    function destroyShape(s, index) {
+        shapes.splice(index, 1);
+        for(let i=0; i<15; i++) particles.push(new Particle(s.x, s.y, s.color));
+
+        if(s.isBomb) {
+            triggerGameOver("EXPLODED");
+        } else {
+            sfx.playShatter(); 
+            score += 10;
+            scoreEl.innerText = score;
+            if(Math.random() > 0.9) shockwaves.push(new Shockwave(s.x, s.y, false));
+        }
+    }
+
+    window.addEventListener('mousedown', e => {
+        if(e.target.tagName === 'BUTTON' || e.target.closest('a')) return;
+        handleInput(e.clientX, e.clientY);
+    });
+
+    window.addEventListener('touchstart', e => {
+        if(e.target.tagName === 'BUTTON' || e.target.closest('a')) return;
+        e.preventDefault();
+        handleInput(e.touches[0].clientX, e.touches[0].clientY);
+    }, {passive: false});
+
+    // --- CLASSES ---
+    class Shape {
+        constructor() {
+            this.size = 40 + Math.random() * 20;
+            this.x = Math.random() * (width - 100) + 50;
+            this.y = height + this.size;
+            
+            const targetHeight = (height * 0.2) + (Math.random() * (height * 0.3)); 
+            const jumpHeight = height - targetHeight;
+            this.vy = -Math.sqrt(2 * GRAVITY * jumpHeight);
+            this.vx = (Math.random() - 0.5) * 4;
+            
+            this.isBomb = Math.random() > 0.85; 
+            
+            if (this.isBomb) {
+                this.color = '#ff3333';
+            } else {
+                this.color = `hsl(${Math.random() * 360}, 70%, 60%)`;
+            }
+        }
+        update() {
+            this.x += this.vx; this.y += this.vy; this.vy += GRAVITY;
+            if (this.x < 0 || this.x > width) this.vx *= -1;
+        }
+        draw() {
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = this.color;
+            ctx.fillStyle = this.color;
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            
+            if (this.isBomb) {
+                ctx.beginPath(); ctx.arc(0,0, this.size/2, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#fff'; ctx.font = 'bold 24px Arial'; 
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('×', 0, 1);
+            } else {
+                ctx.fillRect(-this.size/2, -this.size/2, this.size, this.size);
+            }
+            ctx.restore(); ctx.shadowBlur = 0;
+        }
+    }
+
+    class Particle {
+        constructor(x, y, color) {
+            this.x = x; this.y = y; this.color = color;
+            this.vx = (Math.random()-0.5)*12; this.vy = (Math.random()-0.5)*12;
+            this.life = 1.0;
+        }
+        update() { this.x += this.vx; this.y += this.vy; this.life -= 0.04; }
+        draw() {
+            ctx.globalAlpha = this.life; ctx.fillStyle = this.color;
+            ctx.fillRect(this.x, this.y, 4, 4); ctx.globalAlpha = 1;
+        }
+    }
+
+    class Shockwave {
+        constructor(x, y, isMenu) { 
+            this.x = x; this.y = y; this.r = 0; this.active = true; 
+            this.isMenu = isMenu;
+        }
+        update() { this.r += 15; if(this.r > 150) this.active = false; }
+        draw() {
+            const color = '255, 255, 255';
+            ctx.strokeStyle = `rgba(${color}, ${Math.max(0, 1 - (this.r/150))})`;
+            ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI*2); ctx.stroke();
+        }
+    }
+
+    function spawnLoop() {
+        if(!gameActive) return;
+        shapes.push(new Shape());
+        let rate = Math.max(300, 1000 - (score * 5));
+        spawnTimer = setTimeout(spawnLoop, rate);
+    }
+
+    function update() {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.fillRect(0, 0, width, height);
+
+        if (screenShake > 0) {
+            ctx.save();
+            ctx.translate((Math.random()-0.5)*screenShake, (Math.random()-0.5)*screenShake);
+            screenShake *= 0.9;
+        }
+
+        shockwaves.forEach((sw, i) => { sw.update(); sw.draw(); if(!sw.active) shockwaves.splice(i,1); });
+        for (let i = particles.length - 1; i >= 0; i--) {
+            particles[i].update(); particles[i].draw(); if(particles[i].life <= 0) particles.splice(i,1);
+        }
+
+        if(gameActive) {
+            for (let i = shapes.length - 1; i >= 0; i--) {
+                let s = shapes[i];
+                s.update(); s.draw();
+                if (s.y > height + 100) {
+                    if (s.isBomb) shapes.splice(i, 1);
+                    else triggerGameOver("MISSED");
+                }
+            }
+        }
+
+        if (screenShake > 0) ctx.restore();
+        requestAnimationFrame(update);
+    }
+
+    // Start UI
+    showMainMenu();
+    update();
+</script>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, set, query, orderByChild, limitToLast, get, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAKoNFot-PDVa7gW5Q43KoY7qMwOujYi8s",
+      authDomain: "shatter-33725.firebaseapp.com",
+      databaseURL: "https://shatter-33725-default-rtdb.firebaseio.com",
+      projectId: "shatter-33725",
+      storageBucket: "shatter-33725.firebasestorage.app",
+      messagingSenderId: "964228781305",
+      appId: "1:964228781305:web:c91565bf7cce26f0ae7e28",
+      measurementId: "G-9YB3DFDF82"
+    };
+
+    let db;
+    try {
+        const app = initializeApp(firebaseConfig);
+        db = getDatabase(app);
+        console.log("Firebase Connected");
+    } catch(e) {
+        console.error("Firebase Connection Failed:", e);
+    }
+
+    // --- PLAYER IDENTITY ---
+    function getPlayerId() {
+        let id = localStorage.getItem('shatter_player_id');
+        if (!id) {
+            id = 'player_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('shatter_player_id', id);
+        }
+        return id;
+    }
+
+    function getPlayerName() {
+        return localStorage.getItem('shatter_player_name');
+    }
+
+    // --- CHANGE NAME FUNCTION ---
+    window.editName = function() {
+        const currentName = getPlayerName() || "";
+        const newName = prompt("Enter your new name:", currentName);
+        
+        if (newName && newName.trim() !== "") {
+            // 1. Save locally
+            localStorage.setItem('shatter_player_name', newName.trim());
+            
+            // 2. Update Firebase immediately if user exists
+            const playerId = localStorage.getItem('shatter_player_id');
+            if (playerId && db) {
+                update(ref(db, 'scores/' + playerId), {
+                    name: newName.trim()
+                }).then(() => {
+                    alert("Name updated on leaderboard!");
+                });
+            } else {
+                alert("Name saved! It will appear when you play.");
+            }
+        }
+    };
+
+    window.firebaseSubmit = function(score) {
+        if(!db) return;
+        
+        const playerId = getPlayerId();
+        let name = getPlayerName();
+
+        if (!name) {
+            name = prompt("NEW RECORD! Enter your name:") || "Player";
+            localStorage.setItem('shatter_player_name', name); 
+        }
+
+        set(ref(db, 'scores/' + playerId), {
+            name: name.substring(0, 12),
+            score: score,
+            date: Date.now()
+        }).then(() => {
+            console.log("Score updated!");
+        });
+    };
+
+    window.openLeaderboard = async function() {
+        document.getElementById('leaderboard-modal').style.display = 'block';
+        const content = document.getElementById('lb-content');
+        content.innerHTML = "Loading scores...";
+
+        if(!db) {
+            content.innerHTML = "Offline Mode";
+            return;
+        }
+
+        const topScoresQuery = query(ref(db, 'scores'), orderByChild('score'), limitToLast(10));
+
+        try {
+       
