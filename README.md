@@ -3,7 +3,7 @@
 A fun and interactive web-based game built using HTML, CSS, and JavaScript. Challenge your reflexes and shatter the blocks!
 
 ## 🚀 Live Demo
-You can play the game live here:  
+You can play the game live here: 
 👉 **[Play Shatter Game](https://nishanthnishanth27.github.io/Shatter-game_27/)**
 
 ---
